@@ -1,0 +1,169 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name:  myapp-secret-docker
+  namespace: webapp-namespace
+data:
+    .dockerconfigjson: eyJhdXRocyI6eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsidXNlcm5hbWUiOiJjc3llNzEyNUBnbWFpbC5jb20iLCJwYXNzd29yZCI6ImRja3JfcGF0X1ZXcHU2ampEbGhwc2JlWjVkaTdxcmhqSUxpUSIsImVtYWlsIjoiY3N5ZTcxMjVAZ21haWwuY29tIiwiYXV0aCI6IlkzTjVaVGN4TWpWQVoyMWhhV3d1WTI5dE9tUmphM0pmY0dGMFgxWlhjSFUyYW1wRWJHaHdjMkpsV2pWa2FUZHhjbWhxU1V4cFVRPT0ifX19
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name:  webapp-namespace
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+  namespace: webapp-namespace
+  labels:
+    app: myapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      imagePullSecrets:
+        - name:  myapp-secret-docker
+      containers:
+      - name: my-go-app
+        image: csye712504/webapp:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+        env:
+        - name: DB_HOST
+          value: database-service.webapp-namespace.svc.cluster.local
+        - name: DB_PORT
+          value: "3306"
+        - name: DB_USERNAME
+          value: root
+        - name: DB_PASSWORD
+          value: Smv@12345
+        - name: DB_NAME
+          value: webapp
+      initContainers:
+      - name: flyway-init-container
+        image: csye712504/flyway:latest
+        imagePullPolicy: Always
+        env:
+        - name: DB_HOST
+          value: database-service.webapp-namespace.svc.cluster.local
+        - name: DB_PORT
+          value: "3306"
+        - name: DB_USERNAME
+          value: root
+        - name: DB_PASSWORD
+          value: Smv@12345
+        - name: DB_NAME
+          value: webapp
+        - name: DB_SCHEMA
+          value: webapp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-service
+  namespace: webapp-namespace
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: myapp
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: minikube-storage
+provisioner: k8s.io/minikube-hostpath
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+---
+# apiVersion: storage.k8s.io/v1
+# kind: StorageClass
+# metadata:
+#   name: gcp-storage
+# provisioner: pd.csi.storage.gke.io
+# parameters:
+#   type: pd-standard  # Use "pd-ssd" for better performance
+#   fsType: ext4
+# reclaimPolicy: Retain
+# volumeBindingMode: WaitForFirstConsumer
+# allowVolumeExpansion: true
+# ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: database-service
+  namespace: webapp-namespace
+spec:
+  selector:
+    app: database
+  clusterIP: None
+  ports:
+  - port: 3306
+    targetPort: 3306
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: database
+  namespace: webapp-namespace
+spec:
+  selector:
+    matchLabels:
+      app: database
+  serviceName: database-service
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: database
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:5.7
+        ports:
+        - containerPort: 3306
+          name: web
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+        volumeMounts:
+          - name: mysql-data
+            mountPath: /var/lib/mysql
+        env:
+          - name: MYSQL_ROOT_PASSWORD
+            value: Smv@12345
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: minikube-storage
+      resources:
+        requests:
+          storage: 1Gi
+
+
