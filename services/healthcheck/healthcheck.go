@@ -3,6 +3,7 @@ package healthcheck
 import (
 	"errors"
 	"fmt"
+	"time"
 	"webapp/db"
 )
 
@@ -14,7 +15,8 @@ func Check() error {
 		fmt.Println(err)
 		return errors.New("error connecting to MySQL")
 	}
-	_, err = con.Exec("INSERT INTO webapp (datetime) VALUES(now())")
+	utcTime := time.Now()
+	_, err = con.Exec("INSERT INTO webapp (datetime) VALUES(?)", utcTime)
 	if err != nil {
 		fmt.Println(err)
 		return errors.New("error inserting into healthcheck")
