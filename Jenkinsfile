@@ -45,8 +45,8 @@ pipeline{
                         }
 
                         try {
-                            // sh 'git remote add origin https://$GITHUB_TOKEN@github.com/${REPO_OWNER}/${REPO_NAME}.git'
-                            sh 'git remote set-url origin https://$GITHUB_TOKEN@github.com/cyse7125-sp25-team04/database-migration.git'
+                            // sh ''' git remote set-url origin https://$GITHUB_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git '''
+                            sh 'git remote set-url origin https://$GITHUB_TOKEN@github.com/cyse7125-sp25-team04/webapp-hello-world.git'
                             // Fetch all remotes and tags
                             sh 'git fetch --all --tags'
                             echo "Successfully fetched all tags from all remotes."
@@ -126,7 +126,7 @@ pipeline{
                     sh """
                         docker buildx build --platform linux/amd64,linux/arm64 \
                         -t ${registry}:latest \
-                        -t ${registry}:v${NEW_VERSION} \
+                        -t ${registry}:${NEW_VERSION} \
                         --push .
                     """
                     sh 'docker buildx rm imagebuilder'
