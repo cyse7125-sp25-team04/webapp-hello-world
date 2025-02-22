@@ -41,7 +41,7 @@ spec:
       name: mysql-data
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: minikube-storage
+      storageClassName: gcp-storage
       resources:
         requests:
           storage: 1Gi
